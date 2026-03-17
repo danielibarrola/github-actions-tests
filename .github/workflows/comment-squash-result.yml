@@ -28,12 +28,9 @@ jobs:
         id: result
         shell: bash
         run: |
-          IS_SQUASHED=$(cat is_squashed.txt)
-          COMMIT_COUNT=$(cat commit_count.txt)
-          PR_NUMBER=$(cat pr_number.txt)
-          echo "is_squashed=$IS_SQUASHED" >> $GITHUB_OUTPUT
-          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+              echo "is_squashed=$(cat is_squashed.txt)" >> $GITHUB_OUTPUT
+              echo "commit_count=$(cat commit_count.txt)" >> $GITHUB_OUTPUT
+              echo "pr_number=$(cat pr_number.txt)" >> $GITHUB_OUTPUT
 
       - name: Post PR Comment
         if: steps.result.outputs.is_squashed == 'false'
