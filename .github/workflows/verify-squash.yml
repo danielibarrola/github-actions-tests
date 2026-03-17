@@ -27,11 +27,11 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
           SKIP_LABEL: 'skip-squash-check'
           PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Check if the skip label is present
           if echo "$PR_LABELS" | grep -q "\"name\": \"$SKIP_LABEL\""; then
             echo "Skip label '$SKIP_LABEL' found. Bypassing squash check."
-            echo "is_squashed=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -49,35 +49,28 @@ jobs:
 
           # Count commits in the PR using git
           COMMIT_COUNT=$(git rev-list --count "$BASE_SHA..$HEAD_SHA")
-          echo "count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+          
+          # save results for posting comment
+          mkdir -p result
+          echo "$COMMIT_COUNT" >> result/commit_count.txt
+          echo "$PR_NUMBER" > result/pr_number.txt
 
           echo "Found $COMMIT_COUNT commit(s) in PR"
 
           # Check if squashed
           if [ "$COMMIT_COUNT" -le "$MAX_COMMITS" ]; then
-            echo "is_squashed=true" >> $GITHUB_OUTPUT
+            echo "true" >> result/is_squashed.txt
             echo "PR is squashed ($COMMIT_COUNT commit(s), max allowed: $MAX_COMMITS)"
           else
-            echo "is_squashed=false" >> $GITHUB_OUTPUT
+            echo "false" >> result/is_squashed.txt
             echo "::error::PR is not squashed ($COMMIT_COUNT commit(s), max allowed: $MAX_COMMITS)"
             echo "::error::Please squash your commits before merging"
             exit 1
           fi
 
-      - name: Save result
-        shell: bash
-        env:
-          IS_SQUASHED: ${{ steps.check-commits.outputs.is_squashed }}
-          COMMIT_COUNT: ${{ steps.check-commits.outputs.count }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          mkdir -p result
-          echo "$IS_SQUASHED" > result/is_squashed.txt
-          echo "$COMMIT_COUNT" > result/commit_count.txt
-          echo "$PR_NUMBER" > result/pr_number.txt
-
       - name: Upload result
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        if: always()
         with:
           name: squash-check-result
           path: result/
