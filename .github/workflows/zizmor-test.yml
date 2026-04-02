@@ -1,0 +1,41 @@
+name: Vulnerable Zizmor Test
+
+on:
+  pull_request_target:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  insecure-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout attacker-controlled code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Dump GitHub context
+        shell: bash
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "PR title: ${{ github.event.pull_request.title }}"
+
+      - name: Unsafe command injection example
+        shell: bash
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "Running on PR title: $TITLE"
+          eval "echo Processing: $TITLE"
+
+      - name: Use unpinned third-party action
+        uses: softprops/action-gh-release@v2
