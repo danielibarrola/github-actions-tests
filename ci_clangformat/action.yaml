@@ -77,9 +77,7 @@ runs:
       GIT_DIFF_CMD="git diff -z --name-only --diff-filter=d $DIFF_BASE HEAD -- $FILE_PATTERNS"
       CPP_EXTENSIONS_PATTERN='\.(cc|cpp|cxx|c\+\+|h|hpp|hxx)$'
 
-      # Collect only C++ files from the diff; grep exits 1 if no matches, so suppress that.
       CHANGED_CPP_FILES=$($GIT_DIFF_CMD | grep -zE "$CPP_EXTENSIONS_PATTERN" || true)
-
       if [ -z "$CHANGED_CPP_FILES" ]; then
         echo "::notice::No C++ files changed. Skipping clang-format check."
         exit 0
@@ -88,8 +86,8 @@ runs:
       if [ -f "$REPO_CLANG_FORMAT" ]; then
         echo "::notice::Using repository's .clang-format file."
         # uvx (an alias for `uv tool run`) installs and runs clang-format with a specific version.
-        echo -n "$CHANGED_CPP_FILES" | xargs -0 uvx clang-format==$CLANG_FORMAT_VERSION $CLANG_FORMAT_COMMON_ARGS
+        $GIT_DIFF_CMD | grep -zE "$CPP_EXTENSIONS_PATTERN" | xargs -0 uvx clang-format==$CLANG_FORMAT_VERSION $CLANG_FORMAT_COMMON_ARGS
       else
         echo "::notice::Repository does not have a .clang-format file. Using the action's default under $ACTION_DEFAULT_CLANG_FORMAT."
-        echo -n "$CHANGED_CPP_FILES" | xargs -0 uvx clang-format==$CLANG_FORMAT_VERSION -style=file:$ACTION_DEFAULT_CLANG_FORMAT $CLANG_FORMAT_COMMON_ARGS
+        $GIT_DIFF_CMD | grep -zE "$CPP_EXTENSIONS_PATTERN" | xargs -0 uvx clang-format==$CLANG_FORMAT_VERSION -style=file:$ACTION_DEFAULT_CLANG_FORMAT $CLANG_FORMAT_COMMON_ARGS
       fi
