@@ -42,6 +42,7 @@ runs:
       TARGET_SHA: ${{ github.event.before }}
       FILE_PATHS: ${{ inputs.filepaths }}
     run: |
+      set -x
       FILE_PATTERNS="$FILE_PATHS"
 
       CLANG_FORMAT_COMMON_ARGS="--dry-run --Werror --verbose"
