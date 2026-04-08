@@ -44,3 +44,27 @@ jobs:
       - name: "Check clang-format result did not fail as expected"
         if: steps.check-format.outcome != 'failure'
         run: echo "::error::Clang-format check did not fail as expected." && exit 1
+
+      - name: "Run clang-format (default)"
+        id: check-format-default
+        uses: ./ci_clangformat/
+        continue-on-error: true
+      - name: "Check clang-format result failed as expected"
+        if: steps.check-format-default.outcome == 'failure'
+        run: echo "Clang-format check failed as expected."
+      - name: "Check clang-format result did not fail as expected"
+        if: steps.check-format-default.outcome != 'failure'
+        run: echo "::error::Clang-format check did not fail as expected." && exit 1
+
+
+      - name: "Run clang-format in dir with cpp and non cpp files"
+        id: check-format-dir
+        uses: ./ci_clangformat/
+        with:
+          filepaths: "tests/ci_clangformat/**"
+      - name: "Check clang-format result failed as expected"
+        if: steps.check-format-dir.outcome == 'failure'
+        run: echo "Clang-format check failed as expected."
+      - name: "Check clang-format result did not fail as expected"
+        if: steps.check-format-dir.outcome != 'failure'
+        run: echo "::error::Clang-format check did not fail as expected." && exit 1
