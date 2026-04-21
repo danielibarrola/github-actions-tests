@@ -1,1 +1,1 @@
-# test-squash-commits
+# test-github-actions
