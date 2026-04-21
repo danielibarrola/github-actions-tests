@@ -1,0 +1,25 @@
+name: hello_world.yml
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+
+  hello_world:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hello world
+        run: echo "Hello world"
+
+  hello_world_2:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Hello world
+        run: echo "Hello world"
