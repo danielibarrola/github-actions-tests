@@ -1,0 +1,37 @@
+  name: hello_world.yml
+  on:
+    push:
+      branches: [ main ]
+    pull_request:
+      branches: [ main ]
+  
+  permissions: {}
+  
+  jobs:
+    check-paths:
+      runs-on: ubuntu-latest
+      outputs:
+        run-job: ${{ steps.filter.outputs.match }}
+      steps:
+        - name: Checkout Code
+          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+          with:
+            persist-credentials: false
+        
+        - name: Check Paths
+          id: filter
+          uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+          with:
+            filters: |
+              match:
+                - 'tests/**'
+                - '.github/workflows/hello_world.yml'
+  
+    hello-world-job:
+      needs: check-paths
+      if: ${{ needs.check-paths.outputs.run-job == 'true' }}
+      runs-on: ubuntu-latest
+      name: A job to say hello
+      steps:
+        - name: Say hello
+          run: echo Hello world!
