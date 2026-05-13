@@ -1,0 +1,22 @@
+name: hello_world.yml
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - tests/
+      - .github/workflows/hello_world.yml
+  pull_request:
+    branches: [ main ]
+    paths:
+      - tests/
+      - .github/workflows/hello_world.yml
+
+permissions: {}
+
+jobs:
+  hello-world-job:
+    runs-on: ubuntu-latest
+    name: A job to say hello
+    steps:
+      - name: Say hello
+        run: echo Hello world!
