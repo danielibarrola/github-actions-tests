@@ -1,0 +1,13 @@
+name: say_something.yml
+on:
+  workflow_call:
+    inputs:
+      message:
+        required: true
+        type: string
+
+jobs:
+  say_something:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ inputs.message }}"
