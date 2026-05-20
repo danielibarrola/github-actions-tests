@@ -35,5 +35,5 @@ jobs:
         if: ${{ needs.check-paths.outputs.run-job == 'true' }}
         run: echo Hello world!
       - name: Say goodbye
-        if: ${{ needs.check-paths.outputs.run-job != 'true' }}
+        if: ${{ needs.check-paths.outputs.run-job == 'true' }}
         run: echo Goodbye world!
