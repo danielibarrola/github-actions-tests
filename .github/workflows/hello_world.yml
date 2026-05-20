@@ -26,14 +26,14 @@ jobs:
             match:
               - 'tests/**'
 
-  hello-world-job:
+  say-somethings:
     needs: check-paths
-    runs-on: ubuntu-latest
-    name: A job to say hello
-    steps:
-      - name: Say hello
-        if: ${{ needs.check-paths.outputs.run-job == 'true' }}
-        run: echo Hello world!
-      - name: Say goodbye
-        if: ${{ needs.check-paths.outputs.run-job == 'true' }}
-        run: echo Goodbye world!
+    if: ${{ needs.check-paths.outputs.run-job == 'true' }}
+    uses: ./.github/workflows/say_something.yml
+    strategy:
+      matrix:
+        phrases:
+          - "Hello world!"
+          - "Goodbye world!"
+    with:
+      message: ${{ matrix.phrases }}
