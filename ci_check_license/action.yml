@@ -51,102 +51,57 @@ runs:
         # Ensure Go bin path is active in current execution env
         export PATH=$PATH:$(go env GOPATH)/bin
 
-        # Parse pruned directories
-        IFS=', ' read -r -a PRUNE_INPUT_ARR <<< "$INPUT_EXCLUDE_PATHS" || true
-        PRUNE_ARGS=()
-        for p in "${PRUNE_INPUT_ARR[@]}"; do
-          if [[ -n "$p" ]]; then
-            # Strip optional leading './' and trailing slashes
-            clean_p=$(echo "$p" | sed -e 's|^\./||' -e 's|/$||')
-            PRUNE_ARGS+=( "-path" "./$clean_p" "-prune" "-o" )
-          fi
-        done
-
-        # Standard non-TF-specific exclusions
-        DEFAULT_EXCLUSIONS=(
-          "*.bazel.lock"
-          "*.Dockerfile"
-          "Dockerfile"
-          "*.bin"
-          "*.bmp"
-          "*.bytes"
-          "*.cff"
-          "*.clang-format"
-          "*.clang-tidy"
-          "*.csv"
-          "*.dat"
-          "*.data-*"
-          "*.dict"
-          "*.diff"
-          "*.flac"
-          "*.gif"
-          "*.golden"
-          "*.golden_summary"
-          "*.gz"
-          "*.ico"
-          "*.index"
-          "*.ipynb"
-          "*.jar"
-          "*.jpg"
-          "*.json"
-          "*.mdb"
-          "*.meta"
-          "*.parquet"
-          "*.patch"
-          "*.pb"
-          "*.pdf"
-          "*.png"
-          "*.pyc"
-          "*.svg"
-          "*.symbols"
-          "*.text"
-          "*.textproto"
-          "*.tsv"
-          "*.txt"
-          "*.voc"
-          "*.vocab"
-          "*.wav"
-          "*.webp"
-          "__init__.py"
-          "*.bazel"
-          "*.bzl"
-          "*.BUILD"
-          "*.proto"
-          "*.xml"
-          "*.html"
+        # Build addlicense arguments
+        ADDLICENSE_ARGS=(
+          -c "$INPUT_COPYRIGHT_HOLDER"
+          -l "$INPUT_LICENSE_TYPE"
+          -check
         )
 
-        EXCLUDE_ARGS=()
-        for item in "${DEFAULT_EXCLUSIONS[@]}"; do
-          EXCLUDE_ARGS+=( "!" "-name" "$item" )
+        # Default exclusions (non-source/metadata files)
+        DEFAULT_IGNORE_PATTERNS=(
+          "**/*.bazel.lock" "**/*.Dockerfile" "**/Dockerfile"
+          "**/*.bin" "**/*.bmp" "**/*.bytes" "**/*.cff"
+          "**/*.clang-format" "**/*.clang-tidy" "**/*.csv"
+          "**/*.dat" "**/*.data-*" "**/*.dict" "**/*.diff"
+          "**/*.flac" "**/*.gif" "**/*.golden" "**/*.golden_summary"
+          "**/*.gz" "**/*.ico" "**/*.index" "**/*.ipynb"
+          "**/*.jar" "**/*.jpg" "**/*.json" "**/*.mdb"
+          "**/*.meta" "**/*.parquet" "**/*.patch" "**/*.pb"
+          "**/*.pdf" "**/*.png" "**/*.pyc" "**/*.svg"
+          "**/*.symbols" "**/*.text" "**/*.textproto" "**/*.tsv"
+          "**/*.txt" "**/*.voc" "**/*.vocab" "**/*.wav" "**/*.webp"
+          "**/__init__.py" "**/*.bazel" "**/*.bzl" "**/*.BUILD"
+          "**/*.proto" "**/*.xml" "**/*.html"
+        )
+
+        for pattern in "${DEFAULT_IGNORE_PATTERNS[@]}"; do
+          ADDLICENSE_ARGS+=(-ignore "$pattern")
         done
 
-        # Add custom user-supplied extension exclusions
-        IFS=', ' read -r -a CUSTOM_EXT_ARR <<< "$INPUT_EXCLUDE_EXTENSIONS" || true
-        for ext in "${CUSTOM_EXT_ARR[@]}"; do
-          if [[ -n "$ext" ]]; then
-            clean_ext=$(echo "$ext" | sed 's|^\*\.||')
-            EXCLUDE_ARGS+=( "!" "-name" "*.$clean_ext" )
-          fi
+        # Add user-supplied path exclusions
+        IFS=', ' read -r -a paths <<< "$INPUT_EXCLUDE_PATHS"
+        for p in "${paths[@]}"; do
+          [[ -n "$p" ]] && ADDLICENSE_ARGS+=(-ignore "${p%/}/**")
         done
 
-        # Add custom user-supplied file exclusions
-        IFS=', ' read -r -a CUSTOM_FILE_ARR <<< "$INPUT_EXCLUDE_FILES" || true
-        for f in "${CUSTOM_FILE_ARR[@]}"; do
-          if [[ -n "$f" ]]; then
-            EXCLUDE_ARGS+=( "!" "-name" "$f" )
-          fi
+        # Add user-supplied extension exclusions
+        IFS=', ' read -r -a exts <<< "$INPUT_EXCLUDE_EXTENSIONS"
+        for ext in "${exts[@]}"; do
+          [[ -n "$ext" ]] && ADDLICENSE_ARGS+=(-ignore "**/*.${ext#\*.}")
+        done
+
+        # Add user-supplied file exclusions
+        IFS=', ' read -r -a files <<< "$INPUT_EXCLUDE_FILES"
+        for f in "${files[@]}"; do
+          [[ -n "$f" ]] && ADDLICENSE_ARGS+=(-ignore "**/$f")
         done
 
         echo "Scanning path: $INPUT_SCAN_PATH"
-        echo "Running check with exclusions..."
-        echo "Pruned directories: $INPUT_EXCLUDE_PATHS"
-        echo "Extra extensions: $INPUT_EXCLUDE_EXTENSIONS"
-        echo "Extra files excluded: $INPUT_EXCLUDE_FILES"
+        echo "Running addlicense with ${#ADDLICENSE_ARGS[@]} arguments..."
 
         set +x
-
-        if ! find "$INPUT_SCAN_PATH" "${PRUNE_ARGS[@]}" -type f -name "*.*" "${EXCLUDE_ARGS[@]}" -print0 | xargs -0 addlicense -c "$INPUT_COPYRIGHT_HOLDER" -l "$INPUT_LICENSE_TYPE" -check; then
+        if ! addlicense "${ADDLICENSE_ARGS[@]}" "$INPUT_SCAN_PATH"; then
           echo "::error::License header check failed. Files listed above are missing headers."
           exit 1
         fi
