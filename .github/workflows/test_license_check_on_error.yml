@@ -38,7 +38,7 @@ jobs:
           go-version: 'stable'
       - name: "Run license check on error action"
         id: check-license
-        uses: ./actions/check-license/
+        uses: ./ci_check_license
         with:
           scan-path: "tests/ci_license/unlicensed_files"
           copyright-holder: "Goofle Inc."

@@ -37,7 +37,7 @@ jobs:
         with:
           go-version: 'stable'
       - name: "Run license check successfully"
-        uses: ./actions/check-license/
+        uses: ./ci_check_license
         with:
           scan-path: "tests/ci_license/licensed_files"
           copyright-holder: "Google Inc."
