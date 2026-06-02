@@ -1,3 +1,3 @@
-# file with no copyright header
+# file with no license header
 def hello():
     print("hello world")
