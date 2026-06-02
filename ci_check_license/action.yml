@@ -154,9 +154,11 @@ runs:
         # Create temporary log file
         TEMP_LOG=$(mktemp)
 
+        set +e
         # Scan files, stream standard output in real-time, and capture to TEMP_LOG
         find "$INPUT_SCAN_PATH" "${PRUNE_ARGS[@]}" -type f -name "*.*" "${EXCLUDE_ARGS[@]}" -print0 | xargs -0 addlicense -c "$INPUT_COPYRIGHT_HOLDER" -l "$INPUT_LICENSE_TYPE" -check 2>&1 | tee "$TEMP_LOG"
         STATUS=${PIPESTATUS[1]}
+        set -e
 
         if [ $STATUS -ne 0 ]; then
           echo "::error::License header check failed. One or more files are missing headers."
