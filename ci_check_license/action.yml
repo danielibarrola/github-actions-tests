@@ -21,6 +21,10 @@ inputs:
     description: 'Comma-separated list of additional specific filenames to exclude (e.g. my_custom_template.yaml).'
     required: false
     default: ''
+  scan-path:
+    description: 'The directory path where the scan should begin (defaults to repository root).'
+    required: false
+    default: '.'
 
 runs:
   using: 'composite'
@@ -35,12 +39,20 @@ runs:
 
     - name: 'Run license header checks'
       shell: bash
+      env:
+        INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
+        INPUT_EXCLUDE_EXTENSIONS: ${{ inputs.exclude-extensions }}
+        INPUT_EXCLUDE_FILES: ${{ inputs.exclude-files }}
+        INPUT_SCAN_PATH: ${{ inputs.scan-path }}
+        INPUT_COPYRIGHT_HOLDER: ${{ inputs.copyright-holder }}
+        INPUT_LICENSE_TYPE: ${{ inputs.license-type }}
       run: |
+        set -x
         # Ensure Go bin path is active in current execution env
         export PATH=$PATH:$(go env GOPATH)/bin
 
         # Parse pruned directories
-        IFS=', ' read -d '' -r -a PRUNE_INPUT_ARR <<< "${{ inputs.exclude-paths }}" || true
+        IFS=', ' read -r -a PRUNE_INPUT_ARR <<< "$INPUT_EXCLUDE_PATHS" || true
         PRUNE_ARGS=()
         for p in "${PRUNE_INPUT_ARR[@]}"; do
           if [[ -n "$p" ]]; then
@@ -49,10 +61,18 @@ runs:
             PRUNE_ARGS+=( "-path" "./$clean_p" "-prune" "-o" )
           fi
         done
+
+        # Standard non-TF-specific exclusions
         DEFAULT_EXCLUSIONS=(
           "*.bazel.lock"
           "*.Dockerfile"
           "Dockerfile"
+          "_toc.yaml"
+          "_index.yaml"
+          "_book.yaml"
+          "_doxygen.yaml"
+          "_redirects.yaml"
+          "cloudbuild.yaml"
           "*.bin"
           "*.bmp"
           "*.bytes"
@@ -108,7 +128,7 @@ runs:
         done
 
         # Add custom user-supplied extension exclusions
-        IFS=', ' read -d '' -r -a CUSTOM_EXT_ARR <<< "${{ inputs.exclude-extensions }}" || true
+        IFS=', ' read -r -a CUSTOM_EXT_ARR <<< "$INPUT_EXCLUDE_EXTENSIONS" || true
         for ext in "${CUSTOM_EXT_ARR[@]}"; do
           if [[ -n "$ext" ]]; then
             clean_ext=$(echo "$ext" | sed 's|^\*\.||')
@@ -117,17 +137,35 @@ runs:
         done
 
         # Add custom user-supplied file exclusions
-        IFS=', ' read -d '' -r -a CUSTOM_FILE_ARR <<< "${{ inputs.exclude-files }}" || true
+        IFS=', ' read -r -a CUSTOM_FILE_ARR <<< "$INPUT_EXCLUDE_FILES" || true
         for f in "${CUSTOM_FILE_ARR[@]}"; do
           if [[ -n "$f" ]]; then
             EXCLUDE_ARGS+=( "!" "-name" "$f" )
           fi
         done
 
+        echo "Scanning path: $INPUT_SCAN_PATH"
         echo "Running check with exclusions..."
-        echo "Pruned directories: ${{ inputs.exclude-paths }}"
-        echo "Extra extensions: ${{ inputs.exclude-extensions }}"
-        echo "Extra files excluded: ${{ inputs.exclude-files }}"
+        echo "Pruned directories: $INPUT_EXCLUDE_PATHS"
+        echo "Extra extensions: $INPUT_EXCLUDE_EXTENSIONS"
+        echo "Extra files excluded: $INPUT_EXCLUDE_FILES"
 
-        find . "${PRUNE_ARGS[@]}" -type f -name "*.*" "${EXCLUDE_ARGS[@]}" -print0 | \
-          xargs -0 addlicense -c "${{ inputs.copyright-holder }}" -l "${{ inputs.license-type }}" -check
+        set +x
+        # Capture standard and error output of addlicense to parse files
+        OUTPUT=$(find "$INPUT_SCAN_PATH" "${PRUNE_ARGS[@]}" -type f -name "*.*" "${EXCLUDE_ARGS[@]}" -print0 | xargs -0 addlicense -c "$INPUT_COPYRIGHT_HOLDER" -l "$INPUT_LICENSE_TYPE" -check 2>&1)
+        STATUS=$?
+
+        if [ $STATUS -ne 0 ]; then
+          echo "::error::License header check failed. One or more files are missing headers."
+          # Read each line of missing files and create distinct error annotations
+          while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+              # Add GitHub Actions inline error annotation
+              echo "::error file=$line::File is missing valid license headers."
+              echo "Missing license header: $line"
+            fi
+          done <<< "$OUTPUT"
+          exit $STATUS
+        else
+          echo "::notice::All files scanned under '$INPUT_SCAN_PATH' contain valid license headers."
+        fi
