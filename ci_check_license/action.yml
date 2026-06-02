@@ -12,7 +12,7 @@ inputs:
   exclude-paths:
     description: 'Comma-separated list of folder paths to prune/exclude.'
     required: false
-    default: 'third_party'
+    default: ''
   exclude-extensions:
     description: 'Comma-separated list of additional file extensions to exclude (e.g. tflite, tfrecord).'
     required: false
@@ -67,12 +67,6 @@ runs:
           "*.bazel.lock"
           "*.Dockerfile"
           "Dockerfile"
-          "_toc.yaml"
-          "_index.yaml"
-          "_book.yaml"
-          "_doxygen.yaml"
-          "_redirects.yaml"
-          "cloudbuild.yaml"
           "*.bin"
           "*.bmp"
           "*.bytes"
@@ -151,28 +145,10 @@ runs:
         echo "Extra files excluded: $INPUT_EXCLUDE_FILES"
 
         set +x
-        # Create temporary log file
-        TEMP_LOG=$(mktemp)
 
-        set +e
-        # Scan files, stream standard output in real-time, and capture to TEMP_LOG
-        find "$INPUT_SCAN_PATH" "${PRUNE_ARGS[@]}" -type f -name "*.*" "${EXCLUDE_ARGS[@]}" -print0 | xargs -0 addlicense -c "$INPUT_COPYRIGHT_HOLDER" -l "$INPUT_LICENSE_TYPE" -check 2>&1 | tee "$TEMP_LOG"
-        STATUS=${PIPESTATUS[1]}
-        set -e
-
-        if [ $STATUS -ne 0 ]; then
-          echo "::error::License header check failed. One or more files are missing headers."
-          # Read each line of missing files from TEMP_LOG and create GHA annotations
-          while IFS= read -r line; do
-            # Filter out empty lines, non-existent paths, and tool messages
-            if [[ -n "$line" && ! "$line" =~ ^xargs && -f "$line" ]]; then
-              echo "::error file=$line::File is missing valid license headers."
-              echo "Missing license header: $line"
-            fi
-          done < "$TEMP_LOG"
-          rm -f "$TEMP_LOG"
-          exit $STATUS
-        else
-          echo "::notice::All files scanned under '$INPUT_SCAN_PATH' contain valid license headers."
-          rm -f "$TEMP_LOG"
+        if ! find "$INPUT_SCAN_PATH" "${PRUNE_ARGS[@]}" -type f -name "*.*" "${EXCLUDE_ARGS[@]}" -print0 | xargs -0 addlicense -c "$INPUT_COPYRIGHT_HOLDER" -l "$INPUT_LICENSE_TYPE" -check; then
+          echo "::error::License header check failed. Files listed above are missing headers."
+          exit 1
         fi
+
+        echo "::notice::All files scanned under '$INPUT_SCAN_PATH' contain valid license headers."
