@@ -43,6 +43,9 @@ jobs:
           scan-path: "tests/ci_license/unlicensed_files"
           copyright-holder: "Goofle Inc."
           license-type: "apache"
+          exclude-paths: "tests/ci_license/unlicensed_files/excluded_path"
+          exclude-extensions: 'yml'
+          exclude-files: 'tests/ci_license/unlicensed_files/excluded.py'
         continue-on-error: true
       - name: "Check license check result failed as expected"
         if: steps.check-license.outcome == 'failure'
