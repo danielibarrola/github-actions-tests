@@ -49,5 +49,25 @@ If a workflow run fails due to missing licenses, you're expected to add headers 
 `addlicense -c "<copyright_holder>" -l <license_type> <files>`
 and then commit the modified files back to your branch/pull request.
 
+## Default Exclusions
+
+The action excludes the following file types by default, as they are either binary files, data files, generated files, or formats that don't support comments for license headers:
+
+| Category | Extensions / Files |
+|----------|-------------------|
+| **Binary / Compiled** | `.bin`, `.jar`, `.pb`, `.pyc` |
+| **Images** | `.bmp`, `.gif`, `.ico`, `.jpg`, `.png`, `.svg`, `.webp`, `.pdf` |
+| **Audio** | `.flac`, `.wav`, `.voc` |
+| **Data / Serialization** | `.bytes`, `.csv`, `.dat`, `.data-*`, `.gz`, `.index`, `.json`, `.mdb`, `.meta`, `.parquet`, `.tsv` |
+| **ML / NLP** | `.dict`, `.golden`, `.golden_summary`, `.symbols`, `.text`, `.vocab` |
+| **Documentation / Text** | `.txt`, `.diff`, `.patch`, `.textproto` |
+| **Notebooks** | `.ipynb` |
+| **Build System** | `.bazel`, `.bazel.lock`, `.bzl`, `.BUILD` |
+| **Config / Markup** | `.cff`, `.clang-format`, `.clang-tidy`, `.Dockerfile`, `Dockerfile`, `.html`, `.xml`, `.proto` |
+| **Python** | `__init__.py` (typically empty or auto-generated) |
+
+You can add additional exclusions using the `exclude-extensions` and `exclude-files` inputs.
+
+
 ## Go Requirement
 This action leverages `go install` to reliably install and run `addlicense` (if it is not already present in your runner environment), ensuring exact tool consistency. If Go is not yet installed in your job runner, you will need to include a step to set it up beforehand, such as using `actions/setup-go`.
