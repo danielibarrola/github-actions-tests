@@ -1,0 +1,133 @@
+name: 'Check License Headers'
+description: 'Reusable Action that scans workspace files for Apache or custom license headers, with highly configurable exclusions'
+inputs:
+  copyright-holder:
+    description: 'The copyright holder name to check in the header.'
+    required: true
+    default: 'The TensorFlow Authors'
+  license-type:
+    description: 'The license type to verify (e.g., apache, mit, bsd).'
+    required: true
+    default: 'apache'
+  exclude-paths:
+    description: 'Comma-separated list of folder paths to prune/exclude.'
+    required: false
+    default: 'third_party'
+  exclude-extensions:
+    description: 'Comma-separated list of additional file extensions to exclude (e.g. tflite, tfrecord).'
+    required: false
+    default: ''
+  exclude-files:
+    description: 'Comma-separated list of additional specific filenames to exclude (e.g. my_custom_template.yaml).'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Install addlicense if not present'
+      shell: bash
+      run: |
+        if ! command -v addlicense &> /dev/null; then
+          echo "addlicense CLI not found. Installing github.com/google/addlicense..."
+          go install github.com/google/addlicense@b289835c0741ba2fb92dd5f61af070e79c69a55e # v1.2.0
+        fi
+
+    - name: 'Run license header checks'
+      shell: bash
+      run: |
+        # Ensure Go bin path is active in current execution env
+        export PATH=$PATH:$(go env GOPATH)/bin
+
+        # Parse pruned directories
+        IFS=', ' read -d '' -r -a PRUNE_INPUT_ARR <<< "${{ inputs.exclude-paths }}" || true
+        PRUNE_ARGS=()
+        for p in "${PRUNE_INPUT_ARR[@]}"; do
+          if [[ -n "$p" ]]; then
+            # Strip optional leading './' and trailing slashes
+            clean_p=$(echo "$p" | sed -e 's|^\./||' -e 's|/$||')
+            PRUNE_ARGS+=( "-path" "./$clean_p" "-prune" "-o" )
+          fi
+        done
+        DEFAULT_EXCLUSIONS=(
+          "*.bazel.lock"
+          "*.Dockerfile"
+          "Dockerfile"
+          "*.bin"
+          "*.bmp"
+          "*.bytes"
+          "*.cff"
+          "*.clang-format"
+          "*.clang-tidy"
+          "*.csv"
+          "*.dat"
+          "*.data-*"
+          "*.dict"
+          "*.diff"
+          "*.flac"
+          "*.gif"
+          "*.golden"
+          "*.golden_summary"
+          "*.gz"
+          "*.ico"
+          "*.index"
+          "*.ipynb"
+          "*.jar"
+          "*.jpg"
+          "*.json"
+          "*.mdb"
+          "*.meta"
+          "*.parquet"
+          "*.patch"
+          "*.pb"
+          "*.pdf"
+          "*.png"
+          "*.pyc"
+          "*.svg"
+          "*.symbols"
+          "*.text"
+          "*.textproto"
+          "*.tsv"
+          "*.txt"
+          "*.voc"
+          "*.vocab"
+          "*.wav"
+          "*.webp"
+          "__init__.py"
+          "*.bazel"
+          "*.bzl"
+          "*.BUILD"
+          "*.proto"
+          "*.xml"
+          "*.html"
+        )
+
+        EXCLUDE_ARGS=()
+        for item in "${DEFAULT_EXCLUSIONS[@]}"; do
+          EXCLUDE_ARGS+=( "!" "-name" "$item" )
+        done
+
+        # Add custom user-supplied extension exclusions
+        IFS=', ' read -d '' -r -a CUSTOM_EXT_ARR <<< "${{ inputs.exclude-extensions }}" || true
+        for ext in "${CUSTOM_EXT_ARR[@]}"; do
+          if [[ -n "$ext" ]]; then
+            clean_ext=$(echo "$ext" | sed 's|^\*\.||')
+            EXCLUDE_ARGS+=( "!" "-name" "*.$clean_ext" )
+          fi
+        done
+
+        # Add custom user-supplied file exclusions
+        IFS=', ' read -d '' -r -a CUSTOM_FILE_ARR <<< "${{ inputs.exclude-files }}" || true
+        for f in "${CUSTOM_FILE_ARR[@]}"; do
+          if [[ -n "$f" ]]; then
+            EXCLUDE_ARGS+=( "!" "-name" "$f" )
+          fi
+        done
+
+        echo "Running check with exclusions..."
+        echo "Pruned directories: ${{ inputs.exclude-paths }}"
+        echo "Extra extensions: ${{ inputs.exclude-extensions }}"
+        echo "Extra files excluded: ${{ inputs.exclude-files }}"
+
+        find . "${PRUNE_ARGS[@]}" -type f -name "*.*" "${EXCLUDE_ARGS[@]}" -print0 | \
+          xargs -0 addlicense -c "${{ inputs.copyright-holder }}" -l "${{ inputs.license-type }}" -check
