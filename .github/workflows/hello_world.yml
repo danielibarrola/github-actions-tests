@@ -9,20 +9,19 @@
   
   jobs:
     hello-world-job:
-      if: ${{ needs.check-paths.outputs.run-job == 'true' }}
       runs-on: ubuntu-latest
       name: A job to say hello
       steps:
         - name: Say hello
           run: echo Hello world!
 
-    example-summary:
+    first-summary:
       runs-on: ubuntu-latest
       steps:
         - name: Output Some Markdown Code in Summary 👀
           run: |
             {
-              echo '# Yay, you ran this workflow! 🎉'
+              echo '# This is the first step summary! 🎉'
               echo ''
               echo '## Workflow Details'
               echo '- Branch: ${{ github.ref }}'
@@ -31,3 +30,14 @@
               echo ''
               echo '```'
             } >> $GITHUB_STEP_SUMMARY
+
+    second-summary:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Output Some Markdown Code in Summary 👀
+            run: |
+              {
+                echo '# This is the second step summary! 🎉'
+                echo ''
+                echo '```'
+              } >> $GITHUB_STEP_SUMMARY
