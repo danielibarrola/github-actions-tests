@@ -24,19 +24,26 @@ jobs:
     runs-on: ubuntu-latest
 
   check-status:
-    if: always()
-    runs-on: ubuntu-latest
     needs: print-something
-
-    permissions:
-      actions: read # Required to query the API for job info
-
+    if: always()
+    strategy:
+      matrix:
+        data: [ "ubuntu", "windows" ]
+    runs-on: ubuntu-latest
     steps:
-      - name: Get Matrix Job Statuses
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Check status for ${{ matrix.data }}
         run: |
-          echo "Fetching job details for run ${{ github.run_id }}..."
-          
-          gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
-            --jq '.jobs[] | {name: .name, conclusion: .conclusion, status: .status}'
+          # Get the result of the specific matrix leg from the 'needs' object
+          RESULT="${{ needs.print-something.result }}"
+
+          echo "The aggregate result of the needed job is: $RESULT"
+
+          # If we want to check if THIS specific matrix combination failed
+          # we look at the 'needs' status. 
+          if [ "$RESULT" == "failure" ]; then
+            echo "Detected a failure in the dependency. Taking action for ${{ matrix.data }}..."
+            # You can add logic here or force this job to fail too:
+            exit 1
+          fi
+
+          echo "Dependency succeeded for ${{ matrix.data }}."
