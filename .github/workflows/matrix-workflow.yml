@@ -29,4 +29,4 @@ jobs:
       - name: Check status
         run: | 
           echo "Printing previous job data"
-          echo "${{ needs }}"
+          echo '${{ toJSON(needs) }}'
