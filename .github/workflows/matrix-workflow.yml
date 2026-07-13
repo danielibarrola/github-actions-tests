@@ -1,0 +1,22 @@
+name: Test Matrix
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["**"]
+
+permissions: {}
+
+jobs:
+
+  print-something:
+    strategy:
+      matrix:
+        data: [1, 2]
+
+    steps:
+      - name: Print something
+        run: | 
+          echo "Data: ${{ matrix.data }}"
+
+    runs-on: ubuntu-latest
