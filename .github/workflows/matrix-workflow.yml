@@ -34,6 +34,8 @@ jobs:
       actions: read
     steps:
       - name: Check status for ${{ matrix.data }}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # The job name in the API usually follows the pattern "job_id (matrix_value)"
           # We use jq to find the job that matches the matrix name and get its conclusion
