@@ -33,17 +33,22 @@ jobs:
     steps:
       - name: Check status for ${{ matrix.data }}
         run: |
-          # Get the result of the specific matrix leg from the 'needs' object
-          RESULT="${{ needs.print-something.result }}"
-
-          echo "The aggregate result of the needed job is: $RESULT"
-
-          # If we want to check if THIS specific matrix combination failed
-          # we look at the 'needs' status. 
-          if [ "$RESULT" == "failure" ]; then
-            echo "Detected a failure in the dependency. Taking action for ${{ matrix.data }}..."
-            # You can add logic here or force this job to fail too:
+          # The job name in the API usually follows the pattern "job_id (matrix_value)"
+          # We use jq to find the job that matches the matrix name and get its conclusion
+          JOB_NAME="print-something (${{ matrix.data }})"
+          
+          echo "Searching for status of job: $JOB_NAME"
+          
+          STATUS=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
+            --jq ".jobs[] | select(.name == \"$JOB_NAME\") | .conclusion")
+          
+          echo "The conclusion for $JOB_NAME was: $STATUS"
+          
+          if [ "$STATUS" == "failure" ]; then
+            echo "❌ Dependency $JOB_NAME failed. Failing this job."
             exit 1
+          elif [ "$STATUS" == "success" ]; then
+            echo "✅ Dependency $JOB_NAME succeeded."
+          else
+            echo "⚠️ Dependency $JOB_NAME has status: $STATUS"
           fi
-
-          echo "Dependency succeeded for ${{ matrix.data }}."
