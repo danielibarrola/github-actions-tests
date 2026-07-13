@@ -50,7 +50,10 @@ jobs:
 
   check-status:
     needs: [matrix, build]
-    if: always()
+    # Run whatever the build's outcome was (success, failure) — but skip when
+    # the build itself was skipped, and don't mask a cancellation or a broken
+    # matrix job, since fromJSON below would fail on an empty output.
+    if: ${{ !cancelled() && needs.matrix.result == 'success' && needs.build.result != 'skipped' }}
     name: Check ${{ matrix.job_info.name }}
     strategy:
       fail-fast: false
