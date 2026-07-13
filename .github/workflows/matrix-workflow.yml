@@ -9,34 +9,48 @@ permissions: {}
 
 jobs:
 
-  # Single source of truth for the matrix. Both jobs below expand it with
-  # fromJSON, so the values only ever get edited here.
+  # Reads the matrix from .github/matrix/builds.yml and emits it as JSON, so
+  # every job below expands the exact same data with fromJSON.
   matrix:
     runs-on: ubuntu-latest
     outputs:
       config: ${{ steps.config.outputs.matrix }}
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - id: config
         run: |
-          echo 'matrix={"data":["ubuntu","windows"]}' >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          # -I=0 keeps it on one line, which $GITHUB_OUTPUT requires.
+          echo "matrix=$(yq -o=json -I=0 '{"job_info": .jobs}' .github/matrix/builds.yml)" >> "$GITHUB_OUTPUT"
 
-  print-something:
+  build:
     needs: matrix
+    # An explicit name makes the API job name exactly this string, instead of
+    # "build (<serialized object>)" — check-status relies on that.
+    name: ${{ matrix.job_info.name }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.config) }}
+    # In a real workflow: runs-on: ${{ matrix.job_info.pool }}
+    # and container: ${{ matrix.job_info.container }} — a null container
+    # renders as an empty string, which GitHub reads as "no container".
     runs-on: ubuntu-latest
     steps:
-      - name: ${{ matrix.data }} job
+      - name: Build
         env:
-          OS: ${{ matrix.data }}
+          POOL: ${{ matrix.job_info.pool }}
+          CONTAINER: ${{ matrix.job_info.container }}
+          REPO: ${{ matrix.job_info.repo }}
         run: |
-          echo "OS: $OS"
-          if [ "$OS" == "windows" ]; then exit 1; fi
+          echo "repo=$REPO pool=$POOL container=${CONTAINER:-<none>}"
+          if [[ "$POOL" == windows-* ]]; then exit 1; fi
 
   check-status:
-    needs: [matrix, print-something]
+    needs: [matrix, build]
     if: always()
+    name: Check ${{ matrix.job_info.name }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.config) }}
@@ -49,4 +63,4 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/check-job-status
         with:
-          job-name: print-something (${{ matrix.data }})
+          job-name: ${{ matrix.job_info.name }}
