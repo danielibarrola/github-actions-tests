@@ -28,8 +28,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: print-something
 
+    permissions:
+      actions: read # Required to query the API for job info
+
     steps:
-      - name: Check status
-        run: | 
-          echo "Printing previous job data"
-          echo '${{ toJSON(needs) }}'
+      - name: Get Matrix Job Statuses
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Fetching job details for run ${{ github.run_id }}..."
+          
+          gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
+            --jq '.jobs[] | {name: .name, conclusion: .conclusion, status: .status}'
