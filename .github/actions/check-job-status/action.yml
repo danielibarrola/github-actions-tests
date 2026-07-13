@@ -1,0 +1,55 @@
+name: Check job status
+description: >
+  Look up a single job from the current workflow run via the GitHub API and fail
+  if that job did not succeed. Useful for checking matrix legs individually,
+  since `needs.<job>.result` only exposes the aggregate result of the matrix.
+
+inputs:
+  job-name:
+    description: Exact job name as it appears in the run, e.g. "print-something (ubuntu)".
+    required: true
+  token:
+    description: "Token with `actions: read` permission on this repository."
+    required: false
+    default: ${{ github.token }}
+  allowed-conclusions:
+    description: Space separated list of conclusions that are considered a pass.
+    required: false
+    default: success
+
+runs:
+  using: composite
+  steps:
+    - name: Check status of ${{ inputs.job-name }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        JOB_NAME: ${{ inputs.job-name }}
+        ALLOWED: ${{ inputs.allowed-conclusions }}
+        REPO: ${{ github.repository }}
+        RUN_ID: ${{ github.run_id }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+      run: |
+        set -euo pipefail
+
+        # Scope the query to the current attempt, and paginate so large matrices
+        # aren't truncated by the API's default page size.
+        conclusion=$(gh api \
+          --paginate \
+          "repos/${REPO}/actions/runs/${RUN_ID}/attempts/${RUN_ATTEMPT}/jobs?per_page=100" \
+          --jq '.jobs[] | select(.name == env.JOB_NAME) | .conclusion')
+
+        if [ -z "$conclusion" ]; then
+          echo "::error::No job named '${JOB_NAME}' found in this run."
+          exit 1
+        fi
+
+        for allowed in $ALLOWED; do
+          if [ "$conclusion" = "$allowed" ]; then
+            echo "✅ ${JOB_NAME}: ${conclusion}"
+            exit 0
+          fi
+        done
+
+        echo "::error::${JOB_NAME} concluded with '${conclusion}'."
+        exit 1

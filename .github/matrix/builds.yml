@@ -1,0 +1,84 @@
+# Single source of truth for the build matrix.
+#
+# Consumed by .github/workflows/matrix-workflow.yml, which converts `jobs` to
+# JSON and feeds it to `strategy.matrix` of every job that needs it.
+#
+# `anchors` exists only to name the values repeated below; it is not emitted.
+
+anchors:
+  pools:
+    linux_x86: &linux_x86 linux-x86-n2-16
+    linux_arm64: &linux_arm64 linux-arm64-c4a-16
+    linux_l4: &linux_l4 linux-x86-g2-16-l4-1gpu
+    windows_x86: &windows_x86 windows-x86-n2-16
+
+  containers:
+    ml_build: &ml_build us-docker.pkg.dev/ml-oss-artifacts-published/ml-public-container/ml-build:latest
+    ml_build_arm64: &ml_build_arm64 us-docker.pkg.dev/ml-oss-artifacts-published/ml-public-container/ml-build-arm64:latest
+    jax_py311: &jax_py311 gcr.io/tensorflow-sigs/build:latest-python3.11
+    jax_py312: &jax_py312 gcr.io/tensorflow-sigs/build:latest-python3.12
+    none: &no_container null
+
+jobs:
+  # XLA
+  - name: XLA Linux x86 CPU
+    repo: openxla/xla
+    pool: *linux_x86
+    container: *ml_build
+
+  - name: XLA Windows x86 CPU
+    repo: openxla/xla
+    pool: *windows_x86
+    container: *no_container
+
+  - name: XLA Linux x86 CPU Bzlmod
+    repo: openxla/xla
+    pool: *linux_x86
+    container: *ml_build
+
+  - name: XLA Linux X86 GPU ONEAPI
+    repo: openxla/xla
+    pool: *linux_x86
+    container: *ml_build
+
+  - name: XLA Linux x86 GPU Hermetic ROCm
+    repo: openxla/xla
+    pool: *linux_x86
+    container: *ml_build
+
+  - name: XLA Linux x86 GPU L4
+    repo: openxla/xla
+    pool: *linux_l4
+    container: *ml_build
+
+  - name: XLA Linux ARM64 CPU
+    repo: openxla/xla
+    pool: *linux_arm64
+    container: *ml_build_arm64
+
+  # JAX
+  - name: JAX Linux x86 CPU Bzlmod
+    repo: jax-ml/jax
+    pool: *linux_x86
+    container: *jax_py311
+
+  - name: JAX Windows x86 CPU
+    repo: jax-ml/jax
+    pool: *windows_x86
+    container: *no_container
+
+  - name: JAX Linux x86 GPU L4
+    repo: jax-ml/jax
+    pool: *linux_l4
+    container: *jax_py312
+
+  # TensorFlow
+  - name: TensorFlow Linux x86 CPU
+    repo: tensorflow/tensorflow
+    pool: *linux_x86
+    container: *ml_build
+
+  - name: TensorFlow Linux x86 GPU L4
+    repo: tensorflow/tensorflow
+    pool: *linux_l4
+    container: *ml_build

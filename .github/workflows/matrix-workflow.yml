@@ -1,0 +1,70 @@
+name: Test Matrix
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["**"]
+
+permissions: {}
+
+jobs:
+
+  # Reads the matrix from .github/matrix/builds.yml and emits it as JSON, so
+  # every job below expands the exact same data with fromJSON.
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      config: ${{ steps.config.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - id: config
+        run: |
+          set -euo pipefail
+          # -I=0 keeps it on one line, which $GITHUB_OUTPUT requires.
+          echo "matrix=$(yq -o=json -I=0 '{"job_info": .jobs}' .github/matrix/builds.yml)" >> "$GITHUB_OUTPUT"
+
+  build:
+    if: false
+    needs: matrix
+    # An explicit name makes the API job name exactly this string, instead of
+    # "build (<serialized object>)" — check-status relies on that.
+    name: ${{ matrix.job_info.name }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.config) }}
+    # In a real workflow: runs-on: ${{ matrix.job_info.pool }}
+    # and container: ${{ matrix.job_info.container }} — a null container
+    # renders as an empty string, which GitHub reads as "no container".
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build
+        env:
+          POOL: ${{ matrix.job_info.pool }}
+          CONTAINER: ${{ matrix.job_info.container }}
+          REPO: ${{ matrix.job_info.repo }}
+        run: |
+          echo "repo=$REPO pool=$POOL container=${CONTAINER:-<none>}"
+          if [[ "$POOL" == windows-* ]]; then exit 1; fi
+
+  check-status:
+    needs: [matrix, build]
+    # Run whatever the build's outcome was (success, failure) — but skip when
+    # the build itself was skipped, and don't mask a cancellation or a broken
+    # matrix job, since fromJSON below would fail on an empty output.
+    if: ${{ !cancelled() && needs.matrix.result == 'success' && needs.build.result != 'skipped' }}
+    name: Check ${{ matrix.job_info.name }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.config) }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/check-job-status
+        with:
+          job-name: ${{ matrix.job_info.name }}
