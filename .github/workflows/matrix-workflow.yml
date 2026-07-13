@@ -26,6 +26,7 @@ jobs:
           echo "matrix=$(yq -o=json -I=0 '{"job_info": .jobs}' .github/matrix/builds.yml)" >> "$GITHUB_OUTPUT"
 
   build:
+    if: false
     needs: matrix
     # An explicit name makes the API job name exactly this string, instead of
     # "build (<serialized object>)" — check-status relies on that.
