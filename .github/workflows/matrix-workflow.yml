@@ -12,12 +12,14 @@ jobs:
   print-something:
     strategy:
       matrix:
-        data: [1, 2]
+        data: ["ubuntu", "windows"]
 
     steps:
-      - name: Print ${{ matrix.data }}
+      - name: ${{ matrix.data }} job
         run: | 
-          echo "Data: ${{ matrix.data }}"
+          echo "OS: ${{ matrix.data }}"
+          if [ "${{ matrix.data }}" == "windows" ]; then exit 1; fi
+          exit 0
 
     runs-on: ubuntu-latest
 
