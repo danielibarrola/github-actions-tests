@@ -9,50 +9,44 @@ permissions: {}
 
 jobs:
 
-  print-something:
-    strategy:
-      matrix:
-        data: ["ubuntu", "windows"]
+  # Single source of truth for the matrix. Both jobs below expand it with
+  # fromJSON, so the values only ever get edited here.
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      config: ${{ steps.config.outputs.matrix }}
+    steps:
+      - id: config
+        run: |
+          echo 'matrix={"data":["ubuntu","windows"]}' >> "$GITHUB_OUTPUT"
 
+  print-something:
+    needs: matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.config) }}
+    runs-on: ubuntu-latest
     steps:
       - name: ${{ matrix.data }} job
-        run: | 
-          echo "OS: ${{ matrix.data }}"
-          if [ "${{ matrix.data }}" == "windows" ]; then exit 1; fi
-          exit 0
-
-    runs-on: ubuntu-latest
+        env:
+          OS: ${{ matrix.data }}
+        run: |
+          echo "OS: $OS"
+          if [ "$OS" == "windows" ]; then exit 1; fi
 
   check-status:
-    needs: print-something
+    needs: [matrix, print-something]
     if: always()
     strategy:
-      matrix:
-        data: [ "ubuntu", "windows" ]
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.config) }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
     steps:
-      - name: Check status for ${{ matrix.data }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # The job name in the API usually follows the pattern "job_id (matrix_value)"
-          # We use jq to find the job that matches the matrix name and get its conclusion
-          JOB_NAME="print-something (${{ matrix.data }})"
-          
-          echo "Searching for status of job: $JOB_NAME"
-          
-          STATUS=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
-            --jq ".jobs[] | select(.name == \"$JOB_NAME\") | .conclusion")
-          
-          echo "The conclusion for $JOB_NAME was: $STATUS"
-          
-          if [ "$STATUS" == "failure" ]; then
-            echo "❌ Dependency $JOB_NAME failed. Failing this job."
-            exit 1
-          elif [ "$STATUS" == "success" ]; then
-            echo "✅ Dependency $JOB_NAME succeeded."
-          else
-            echo "⚠️ Dependency $JOB_NAME has status: $STATUS"
-          fi
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/check-job-status
+        with:
+          job-name: print-something (${{ matrix.data }})
