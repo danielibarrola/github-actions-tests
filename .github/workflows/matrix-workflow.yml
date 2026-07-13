@@ -15,8 +15,18 @@ jobs:
         data: [1, 2]
 
     steps:
-      - name: Print something
+      - name: Print ${{ matrix.data }}
         run: | 
           echo "Data: ${{ matrix.data }}"
 
     runs-on: ubuntu-latest
+
+  check-status:
+    runs-on: ubuntu-latest
+    needs: print-something
+
+    steps:
+      - name: Check status
+        run: | 
+          echo "Printing previous job data"
+          echo "${{ needs }}"
