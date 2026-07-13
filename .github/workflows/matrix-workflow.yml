@@ -30,6 +30,8 @@ jobs:
       matrix:
         data: [ "ubuntu", "windows" ]
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
     steps:
       - name: Check status for ${{ matrix.data }}
         run: |
